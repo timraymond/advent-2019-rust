@@ -6,16 +6,35 @@ fn main() {
     let input = File::open(path).unwrap();
     let buffered = BufReader::new(input);
 
-    let mut sum: u32 = 0;
+    let mut sum: i64 = 0;
     for (_, line) in buffered.lines().enumerate() {
-        let num: u32 = line.unwrap().trim().parse().unwrap();
-        sum = sum + fuel(num);
+        let num: i64 = line.unwrap().trim().parse().unwrap();
+        sum = sum + all_fuel(num);
     }
     println!("{}", sum);
 }
 
-fn fuel(mass: u32) -> u32 {
+fn all_fuel(mass: i64) -> i64 {
+    let mut sum: i64 = 0;
+    let mut cur = mass;
+    loop {
+        cur = fuel(cur);
+        if cur <= 0 {
+            break;
+        }
+        sum += cur;
+    }
+    return sum;
+}
+
+fn fuel(mass: i64) -> i64 {
     return (mass/3)-2;
+}
+
+#[test]
+fn test_all_fuel() {
+    assert_eq!(all_fuel(1969), 966);
+    assert_eq!(all_fuel(100756), 50346);
 }
 
 #[test]
