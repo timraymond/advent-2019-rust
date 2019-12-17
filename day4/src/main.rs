@@ -1,4 +1,5 @@
 const REQUIRED_LENGTH: usize = 6;
+const REQUIRED_SEQ: i32 = 2;
 
 fn valid(password: &str) -> bool {
     // check length
@@ -6,29 +7,50 @@ fn valid(password: &str) -> bool {
         return false;
     }
 
-    // ensure increase
-    let mut max = 0;
-    let mut did_double = false;
+    let mut cur = 0;
+    let mut seq_len = 0;
+    let mut min_seq_len = REQUIRED_LENGTH as i32;
 
     for digit in password.chars() {
         if let Some(dig) = digit.to_digit(10) {
-            if dig < max {
+            if dig > cur {
+                if seq_len < min_seq_len && seq_len > 1 {
+                    min_seq_len = seq_len;
+                }
+                cur = dig;
+                seq_len = 1;
+            } else if dig == cur {
+                seq_len += 1;
+            } else {
+                // decreasing sequence
                 return false;
-            } else if dig == max {
-                did_double = true;
             }
-            max = dig;
         } else {
             return false;
         }
     }
 
-    return did_double;
+    // such a hack to repeat this:
+    if seq_len < min_seq_len && seq_len > 1 {
+        min_seq_len = seq_len;
+    }
+
+    return min_seq_len == REQUIRED_SEQ;
+}
+
+#[test]
+fn test_valid_with_same() {
+    assert_eq!(valid("111111"), false);
 }
 
 #[test]
 fn test_valid_with_valid() {
-    assert_eq!(valid("111111"), true);
+    assert_eq!(valid("112233"), true);
+}
+
+#[test]
+fn test_valid_with_long_double() {
+    assert_eq!(valid("123444"), false);
 }
 
 #[test]
@@ -39,6 +61,11 @@ fn test_valid_with_decrease() {
 #[test]
 fn test_valid_with_no_double() {
     assert_eq!(valid("123789"), false);
+}
+
+#[test]
+fn test_valid_with_odd_and_pair() {
+    assert_eq!(valid("111122"), true);
 }
 
 fn main() {
