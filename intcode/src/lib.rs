@@ -63,31 +63,75 @@ mod tests {
         exec(&mut prg, &mut inbuf, &mut outbuf);
         assert_eq!(outbuf.output[0], 42);
     }
+
+    #[test]
+    fn test_modes() {
+        let mut prg = vec!(1002, 4, 3, 4, 33);
+        let mut inbuf = IOBuf{
+            input: Vec::new(),
+            output: Vec::new(),
+        };
+        let mut outbuf = IOBuf{
+            input: Vec::new(),
+            output: Vec::new(),
+        };
+        exec(&mut prg, &mut inbuf, &mut outbuf);
+        assert_eq!(prg[4], 99);
+    }
 }
 
 enum Instruction {
-    Add(i32, i32, i32),
-    Mul(i32, i32, i32),
+    Add(Param, Param, Param),
+    Mul(Param, Param, Param),
     In(i32),
     Out(i32),
     Halt,
     Invalid,
 }
 
+#[derive(Debug)]
+enum Param {
+    Immediate(i32),
+    Address(i32),
+}
+
+impl Param {
+    fn retrieve(&self, prg: &[i32]) -> i32 {
+        match self {
+            Param::Immediate(val) => (*val),
+            Param::Address(adr) => (prg[*adr as usize]),
+        }
+    }
+}
+
 impl Instruction {
     fn exec(&self, prg: &mut [i32], input: &mut impl NumConsumer, output: &mut impl NumProducer) {
         match self {
             Instruction::Add(a, b, out) => {
-                prg[*out as usize] = prg[*a as usize] + prg[*b as usize];
+                let a_val = a.retrieve(&prg);
+                let b_val = b.retrieve(&prg);
+
+                if let Param::Address(adr) = out {
+                    prg[*adr as usize] = a_val + b_val;
+                } else {
+                    panic!("decoding bug: out is not an address!");
+                }
             },
             Instruction::Mul(a, b, out) => {
-                prg[*out as usize] = prg[*a as usize] * prg[*b as usize];
+                let a_val = a.retrieve(&prg);
+                let b_val = b.retrieve(&prg);
+
+                if let Param::Address(adr) = out {
+                    prg[*adr as usize] = a_val * b_val;
+                } else {
+                    panic!("decoding bug: out is not an address!");
+                }
             },
             Instruction::In(dest) => {
                 prg[*dest as usize] = input.input();
             }
-            Instruction::Out(source) => {
-                output.output(prg[*source as usize]);
+            Instruction::Out(src) => {
+                output.output(prg[*src as usize]);
             }
             _ => (),
         }
@@ -104,10 +148,33 @@ impl Instruction {
     }
 }
 
+fn decode_param(val: i32, mode: i32) -> Param {
+    println!("mode: {}", mode);
+    if mode == 1 {
+        Param::Immediate(val)
+    } else {
+        Param::Address(val)
+    }
+}
+
 fn decode(ins: &[i32]) -> Instruction {
-    match ins[0] {
-        1 => Instruction::Add(ins[1], ins[2], ins[3]),
-        2 => Instruction::Mul(ins[1], ins[2], ins[3]),
+    let opcode = ins[0] % 100;
+    let p1_mode = (ins[0] / 100) % 10;
+    let p2_mode = (ins[0] / 1_000) % 10;
+
+    println!("op: {}, p1: {}, p2: {}", opcode, p1_mode, p2_mode);
+
+    match opcode {
+        1 => Instruction::Add(
+            decode_param(ins[1], p1_mode),
+            decode_param(ins[2], p2_mode),
+            Param::Address(ins[3]),
+        ),
+        2 => Instruction::Mul(
+            decode_param(ins[1], p1_mode),
+            decode_param(ins[2], p2_mode),
+            Param::Address(ins[3]),
+        ),
         3 => Instruction::In(ins[1]),
         4 => Instruction::Out(ins[1]),
         99 => Instruction::Halt,
