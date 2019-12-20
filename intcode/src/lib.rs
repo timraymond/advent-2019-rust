@@ -2,38 +2,66 @@
 mod tests {
     use super::*;
 
+    struct IOBuf {
+        input: Vec<i32>,
+        output: Vec<i32>,
+    }
+
+    impl NumProducer for IOBuf {
+        fn output(&mut self, out: i32) {
+            self.output.push(out);
+        }
+    }
+
+    impl NumConsumer for IOBuf {
+        fn input(&mut self) -> i32 {
+            self.input.pop().unwrap()
+        }
+    }
+
     #[test]
     fn test_add() {
         let mut prg = vec!(1, 5, 6, 7, 99, 1, 2, 0, 0);
-        if let Err(msg) = exec(&mut prg) {
-            panic!(false);
-        } else {
-            assert_eq!(prg[7], 3);
-        }
+        let mut inbuf = IOBuf{
+            input: Vec::new(),
+            output: Vec::new(),
+        };
+        let mut outbuf = IOBuf{
+            input: Vec::new(),
+            output: Vec::new(),
+        };
+        exec(&mut prg, &mut inbuf, &mut outbuf);
+        assert_eq!(prg[7], 3);
     }
 
     #[test]
     fn test_mul() {
         let mut prg = vec!(2, 5, 6, 7, 99, 1, 2, 0, 0);
-        if let Err(msg) = exec(&mut prg) {
-            panic!(false);
-        } else {
-            assert_eq!(prg[7], 2);
-        }
+        let mut inbuf = IOBuf{
+            input: Vec::new(),
+            output: Vec::new(),
+        };
+        let mut outbuf = IOBuf{
+            input: Vec::new(),
+            output: Vec::new(),
+        };
+        exec(&mut prg, &mut inbuf, &mut outbuf);
+        assert_eq!(prg[7], 2);
     }
 
     #[test]
-    fn test_input() {
+    fn test_input_output() {
         let mut prg = vec!(3, 0, 4, 0, 99);
-        let input = vec![42];
-        match exec(&mut prg) {
-            Ok(out) => {
-                assert_eq!(out[0], 42);
-            },
-            Err(msg) => {
-                panic!(msg)
-            }
-        }
+        let mut inbuf = IOBuf{
+            input: vec![42],
+            output: Vec::new(),
+        };
+        let mut outbuf = IOBuf{
+            input: Vec::new(),
+            output: Vec::new(),
+        };
+        exec(&mut prg, &mut inbuf, &mut outbuf);
+        assert_eq!(outbuf.output[0], 42);
     }
 }
 
@@ -47,7 +75,7 @@ enum Instruction {
 }
 
 impl Instruction {
-    fn exec(&self, prg: &mut [i32], input: &impl NumConsumer, output: &impl NumProducer) {
+    fn exec(&self, prg: &mut [i32], input: &mut impl NumConsumer, output: &mut impl NumProducer) {
         match self {
             Instruction::Add(a, b, out) => {
                 prg[*out as usize] = prg[*a as usize] + prg[*b as usize];
@@ -88,14 +116,14 @@ fn decode(ins: &[i32]) -> Instruction {
 }
 
 pub trait NumProducer {
-    fn output(&self, out: i32);
+    fn output(&mut self, out: i32);
 }
 
 pub trait NumConsumer {
-    fn input(&self) -> i32;
+    fn input(&mut self) -> i32;
 }
 
-pub fn exec(prg: &mut [i32], input: &impl NumConsumer, out: &impl NumProducer) {
+pub fn exec(prg: &mut [i32], input: &mut impl NumConsumer, out: &mut impl NumProducer) {
     let mut pc = 0;
 
     loop {
