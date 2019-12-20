@@ -243,7 +243,7 @@ impl Instruction {
             Instruction::JumpIfFalse(condition, target) => {
                 let cond = condition.retrieve(&prg);
                 let tgt = target.retrieve(&prg);
-                if cond != 0 {
+                if cond == 0 {
                     return tgt as usize;
                 } else {
                     return pc + 3;
@@ -346,6 +346,7 @@ pub fn exec(prg: &mut [i32], input: &mut impl NumConsumer, out: &mut impl NumPro
             },
             _ => {
                 pc = ins.exec(&pc, prg, input, out);
+                println!("next: {}", pc);
             },
         }
     }
