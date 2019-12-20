@@ -78,6 +78,21 @@ mod tests {
         exec(&mut prg, &mut inbuf, &mut outbuf);
         assert_eq!(prg[4], 99);
     }
+
+    #[test]
+    fn test_jump_if_true() {
+        let mut prg = vec!(5, 1, 5, 99, 0, 1101, 2, 2, 4, 99);
+        let mut inbuf = IOBuf{
+            input: Vec::new(),
+            output: Vec::new(),
+        };
+        let mut outbuf = IOBuf{
+            input: Vec::new(),
+            output: Vec::new(),
+        };
+        exec(&mut prg, &mut inbuf, &mut outbuf);
+        assert_eq!(prg[4], 4);
+    }
 }
 
 enum Instruction {
@@ -85,6 +100,7 @@ enum Instruction {
     Mul(Param, Param, Param),
     In(i32),
     Out(i32),
+    JumpIfTrue(i32, i32),
     Halt,
     Invalid,
 }
@@ -105,7 +121,7 @@ impl Param {
 }
 
 impl Instruction {
-    fn exec(&self, prg: &mut [i32], input: &mut impl NumConsumer, output: &mut impl NumProducer) {
+    fn exec(&self, pc: &usize, prg: &mut [i32], input: &mut impl NumConsumer, output: &mut impl NumProducer) -> usize {
         match self {
             Instruction::Add(a, b, out) => {
                 let a_val = a.retrieve(&prg);
@@ -116,6 +132,7 @@ impl Instruction {
                 } else {
                     panic!("decoding bug: out is not an address!");
                 }
+                return pc + 4;
             },
             Instruction::Mul(a, b, out) => {
                 let a_val = a.retrieve(&prg);
@@ -126,24 +143,24 @@ impl Instruction {
                 } else {
                     panic!("decoding bug: out is not an address!");
                 }
+                return pc + 4;
             },
             Instruction::In(dest) => {
                 prg[*dest as usize] = input.input();
-            }
+                return pc + 2;
+            },
             Instruction::Out(src) => {
                 output.output(prg[*src as usize]);
-            }
-            _ => (),
-        }
-    }
-
-    fn size(&self) -> usize {
-        match self {
-            Instruction::Add(_, _, _) => 4,
-            Instruction::Mul(_, _, _) => 4,
-            Instruction::In(_) => 2,
-            Instruction::Out(_) => 2,
-            _ => 1,
+                return pc + 2;
+            },
+            Instruction::JumpIfTrue(condition, target) => {
+                if *condition != 0 {
+                    return *target as usize;
+                } else {
+                    return pc + 3;
+                }
+            },
+            _ => (0)
         }
     }
 }
@@ -177,6 +194,7 @@ fn decode(ins: &[i32]) -> Instruction {
         ),
         3 => Instruction::In(ins[1]),
         4 => Instruction::Out(ins[1]),
+        5 => Instruction::JumpIfTrue(ins[1], ins[2]), // may need decode_param
         99 => Instruction::Halt,
         _ => Instruction::Invalid,
     }
@@ -205,8 +223,7 @@ pub fn exec(prg: &mut [i32], input: &mut impl NumConsumer, out: &mut impl NumPro
                 panic!("invalid instruction");
             },
             _ => {
-                ins.exec(prg, input, out);
-                pc += ins.size();
+                pc = ins.exec(&pc, prg, input, out);
             },
         }
     }
