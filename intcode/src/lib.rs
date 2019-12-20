@@ -175,8 +175,8 @@ enum Instruction {
     Mul(Param, Param, Param),
     In(i32),
     Out(i32),
-    JumpIfTrue(i32, i32),
-    JumpIfFalse(i32, i32),
+    JumpIfTrue(Param, Param),
+    JumpIfFalse(Param, Param),
     Equal(Param, Param, i32),
     LessThan(Param, Param, i32),
     Halt,
@@ -232,15 +232,19 @@ impl Instruction {
                 return pc + 2;
             },
             Instruction::JumpIfTrue(condition, target) => {
-                if *condition != 0 {
-                    return *target as usize;
+                let cond = condition.retrieve(&prg);
+                let tgt = target.retrieve(&prg);
+                if cond != 0 {
+                    return tgt as usize;
                 } else {
                     return pc + 3;
                 }
             },
             Instruction::JumpIfFalse(condition, target) => {
-                if *condition == 0 {
-                    return *target as usize;
+                let cond = condition.retrieve(&prg);
+                let tgt = target.retrieve(&prg);
+                if cond != 0 {
+                    return tgt as usize;
                 } else {
                     return pc + 3;
                 }
@@ -301,8 +305,8 @@ fn decode(ins: &[i32]) -> Instruction {
         ),
         3 => Instruction::In(ins[1]),
         4 => Instruction::Out(ins[1]),
-        5 => Instruction::JumpIfTrue(ins[1], ins[2]), // may need decode_param
-        6 => Instruction::JumpIfFalse(ins[1], ins[2]), // may need decode_param
+        5 => Instruction::JumpIfTrue(decode_param(ins[1], p1_mode), decode_param(ins[2], p2_mode)),
+        6 => Instruction::JumpIfFalse(decode_param(ins[1], p1_mode), decode_param(ins[2], p2_mode)),
         7 => Instruction::LessThan(
             decode_param(ins[1], p1_mode),
             decode_param(ins[2], p2_mode),
