@@ -108,6 +108,36 @@ mod tests {
         exec(&mut prg, &mut inbuf, &mut outbuf);
         assert_eq!(prg[4], 4);
     }
+
+    #[test]
+    fn test_less_than_true() {
+        let mut prg = vec!(1107, 1, 2, 5, 99, 42);
+        let mut inbuf = IOBuf{
+            input: Vec::new(),
+            output: Vec::new(),
+        };
+        let mut outbuf = IOBuf{
+            input: Vec::new(),
+            output: Vec::new(),
+        };
+        exec(&mut prg, &mut inbuf, &mut outbuf);
+        assert_eq!(prg[5], 1);
+    }
+
+    #[test]
+    fn test_less_than_false() {
+        let mut prg = vec!(1107, 2, 1, 5, 99, 42);
+        let mut inbuf = IOBuf{
+            input: Vec::new(),
+            output: Vec::new(),
+        };
+        let mut outbuf = IOBuf{
+            input: Vec::new(),
+            output: Vec::new(),
+        };
+        exec(&mut prg, &mut inbuf, &mut outbuf);
+        assert_eq!(prg[5], 0);
+    }
 }
 
 enum Instruction {
@@ -117,6 +147,7 @@ enum Instruction {
     Out(i32),
     JumpIfTrue(i32, i32),
     JumpIfFalse(i32, i32),
+    LessThan(Param, Param, i32),
     Halt,
     Invalid,
 }
@@ -183,6 +214,17 @@ impl Instruction {
                     return pc + 3;
                 }
             },
+            Instruction::LessThan(first_operand, second_operand, target) => {
+                let first = first_operand.retrieve(&prg);
+                let second = second_operand.retrieve(&prg);
+
+                if first < second {
+                    prg[*target as usize] = 1;
+                } else {
+                    prg[*target as usize] = 0;
+                }
+                return pc + 4;
+            },
             _ => (0)
         }
     }
@@ -219,6 +261,11 @@ fn decode(ins: &[i32]) -> Instruction {
         4 => Instruction::Out(ins[1]),
         5 => Instruction::JumpIfTrue(ins[1], ins[2]), // may need decode_param
         6 => Instruction::JumpIfFalse(ins[1], ins[2]), // may need decode_param
+        7 => Instruction::LessThan(
+            decode_param(ins[1], p1_mode),
+            decode_param(ins[2], p2_mode),
+            ins[3],
+        ),
         99 => Instruction::Halt,
         _ => Instruction::Invalid,
     }
