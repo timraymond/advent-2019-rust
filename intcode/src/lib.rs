@@ -93,6 +93,21 @@ mod tests {
         exec(&mut prg, &mut inbuf, &mut outbuf);
         assert_eq!(prg[4], 4);
     }
+
+    #[test]
+    fn test_jump_if_false() {
+        let mut prg = vec!(6, 0, 5, 99, 0, 1101, 2, 2, 4, 99);
+        let mut inbuf = IOBuf{
+            input: Vec::new(),
+            output: Vec::new(),
+        };
+        let mut outbuf = IOBuf{
+            input: Vec::new(),
+            output: Vec::new(),
+        };
+        exec(&mut prg, &mut inbuf, &mut outbuf);
+        assert_eq!(prg[4], 4);
+    }
 }
 
 enum Instruction {
@@ -101,6 +116,7 @@ enum Instruction {
     In(i32),
     Out(i32),
     JumpIfTrue(i32, i32),
+    JumpIfFalse(i32, i32),
     Halt,
     Invalid,
 }
@@ -160,6 +176,13 @@ impl Instruction {
                     return pc + 3;
                 }
             },
+            Instruction::JumpIfFalse(condition, target) => {
+                if *condition == 0 {
+                    return *target as usize;
+                } else {
+                    return pc + 3;
+                }
+            },
             _ => (0)
         }
     }
@@ -195,6 +218,7 @@ fn decode(ins: &[i32]) -> Instruction {
         3 => Instruction::In(ins[1]),
         4 => Instruction::Out(ins[1]),
         5 => Instruction::JumpIfTrue(ins[1], ins[2]), // may need decode_param
+        6 => Instruction::JumpIfFalse(ins[1], ins[2]), // may need decode_param
         99 => Instruction::Halt,
         _ => Instruction::Invalid,
     }
