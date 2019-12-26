@@ -1,81 +1,24 @@
-/// Node represents a member in a graph of orbits
-struct Node {
-    name: String,
-    children: Vec<Node>,
-}
+use std::fs;
+use std::collections::HashMap;
 
-impl Node {
-    fn new(name: &str) -> Node {
-        Node{
-            name: String::from(name),
-            children: Vec::new(),
+fn from_input(input: &str) -> HashMap<String, Vec<String>> {
+    let mut orbits: HashMap<String, Vec<String>> = HashMap::new();
+
+    for line in input.lines() {
+        if !line.contains(")") {
+            continue;
         }
+        let mut parts = line.split(")").take(2);
+
+        let parent = parts.next().unwrap();
+        let child = parts.next().unwrap();
+
+        orbits.entry(String::from(parent))
+              .or_default()
+              .push(String::from(child));
     }
 
-    fn from_input(input: &str) -> Node {
-        let mut com = Node::new("COM");
-
-        for line in input.lines() {
-            if !line.contains(")") {
-                continue;
-            }
-            let mut parts = line.split(")").take(2);
-
-            let parent = parts.next().unwrap();
-            let child = Node::new(parts.next().unwrap());
-
-            com.add(parent, child);
-        }
-
-        return com;
-    }
-
-    fn add(&mut self, target_name: &str, child: Node) {
-        if let Some(target) = self.locate(target_name) {
-            target.children.push(child);
-        }
-    }
-
-    fn locate(&mut self, name: &str) -> Option<&mut Node> {
-        if self.name == name {
-            return Some(self);
-        }
-
-        for child in self.children.iter() {
-            if child.name == name {
-                return Some(self);
-            }
-        }
-
-        return None;
-    }
-
-    fn orbits(&self) -> u32 {
-        let mut sum = 1;
-        for child in self.children.iter() {
-            sum += child.orbits();
-        }
-        return sum;
-    }
-}
-
-#[test]
-fn test_add() {
-    let mut com = Node::new("COM");
-    com.add("COM", Node::new("A"));
-    assert_eq!(com.orbits(), 2);
-    com.add("A", Node::new("B"));
-    assert_eq!(com.orbits(), 3);
-}
-
-#[test]
-fn test_counts_direct_orbits() {
-    let map = Node{
-        name: String::from("A"),
-        children: vec!(Node{name: String::from("B"), children: Vec::new()}),
-    };
-
-    assert_eq!(map.orbits(), 2);
+    return orbits;
 }
 
 #[test]
@@ -93,26 +36,24 @@ E)J
 J)K
 K)L
 ";
-    let map = Node::from_input(input);
-    assert_eq!(map.orbits(), 42);
+    let map = from_input(input);
+    assert_eq!(orbit_count(&map, "COM", 0), 42);
 }
 
-#[test]
-fn test_counts_indirect_orbits() {
-    let map = Node{
-        name: String::from("A"),
-        children: vec!(Node{
-            name: String::from("B"),
-            children: vec!(Node{
-                name: String::from("C"),
-                children: Vec::new(),
-            }),
-        }),
-    };
-
-    assert_eq!(map.orbits(), 3);
+fn orbit_count(map: &HashMap<String, Vec<String>>, target: &str, depth: u32) -> u32 {
+    match map.get(target) {
+        Some(children) => children.iter()
+                                  .map(|child| orbit_count(map, child, depth+1))
+                                  .fold(depth, |acc, e| acc + e),
+        None => depth,
+    }
 }
 
 fn main() {
-    println!("Hello, world!");
+    if let Ok(content) = fs::read_to_string("input.txt") {
+        let map = from_input(&content);
+        println!("Orbits: {}", orbit_count(&map, "COM", 0));
+    } else {
+        println!("Unable to read");
+    }
 }
